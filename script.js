@@ -43,6 +43,10 @@ function updateScore() {
     scoreDisplay.textContent = `Score: ${score}`;
 }
 
+function isStraightConnection(fromCell, toCell) {
+    return fromCell.dataset.row === toCell.dataset.row || fromCell.dataset.col === toCell.dataset.col;
+}
+
 function pickRandomTargets(count, total) {
     const selected = new Set();
 
@@ -67,6 +71,8 @@ function buildBoard(targets) {
         cell.className = 'grid-cell';
         cell.type = 'button';
         cell.setAttribute('aria-label', `Grid cell ${i + 1}`);
+        cell.dataset.row = Math.floor(i / 9);
+        cell.dataset.col = i % 9;
 
         const targetOrder = targets.indexOf(i) + 1;
         const isTarget = targetOrder > 0;
@@ -79,10 +85,6 @@ function buildBoard(targets) {
 
         cell.addEventListener('click', () => {
             const targetOrder = Number(cell.dataset.targetOrder || 0);
-
-            if (!targetOrder) {
-                return;
-            }
 
             if (!selectedCell) {
                 if (targetOrder === targetIndex + 1) {
@@ -102,21 +104,36 @@ function buildBoard(targets) {
                 return;
             }
 
-            if (selectedCell.dataset.targetOrder === String(targetIndex + 1) && targetOrder === targetIndex + 2) {
+            if (!isStraightConnection(selectedCell, cell)) {
+                updateStatus('Connections must be vertical or horizontal.');
+                return;
+            }
+
+            if (targetOrder === targetIndex + 2) {
                 drawConnection(selectedCell, cell);
                 selectedCell.classList.remove('selected');
                 selectedCell.classList.add('completed');
                 cell.classList.add('completed');
                 selectedCell = null;
                 targetIndex += 1;
-                score += 1;
-                updateScore();
 
-                if (targetIndex < 3) {
+                if (targetIndex === 2) {
+                    score += 1;
+                    updateScore();
+                }
+
+                if (targetIndex < 2) {
                     updateStatus(`Nice! Connect target ${targetIndex + 2}.`);
                 } else {
                     updateStatus('All targets connected!');
                 }
+            } else if (targetOrder === 0) {
+                drawConnection(selectedCell, cell);
+                selectedCell.classList.remove('selected');
+                selectedCell.classList.add('path');
+                cell.classList.add('selected');
+                selectedCell = cell;
+                updateStatus(`Keep connecting orthogonally toward target ${targetIndex + 2}.`);
             } else {
                 updateStatus(`Connect target ${targetIndex + 1} first.`);
             }
@@ -128,6 +145,8 @@ function buildBoard(targets) {
 
 resetButton.addEventListener('click', () => {
     buildBoard(currentTargets);
+    score = 0;
+    updateScore();
 });
 
 newSetButton.addEventListener('click', () => {
